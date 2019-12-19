@@ -1,7 +1,8 @@
 from Util import *
-from Cogs import JoinQuit
-from Cogs import Command
 import discord
+from cogs.Utils.JoinQuit import JoinQuit
+from cogs.Utils.UtilCMD import UtilCMD
+from cogs.Manager.ChatDelete import ChatDelete
 
 @bot.event
 async def on_ready():
@@ -14,14 +15,14 @@ async def on_ready():
     print(prefix + "Join Server(Guild) List:")
     for g in bot.guilds:
         print(prefix + "\t- " + g.name)
-
+    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name=f"Command | $help"))
 
 if __name__ == '__main__':
-    activity = discord.Activity(name='my activity', type=discord.ActivityType.watching)
-    # bot.change_presence(activity=activity)
 
     bot.remove_command('help')
-    bot.add_cog(JoinQuit.JoinQuit(bot))
-    bot.add_cog(Command.Command(bot))
+    bot.add_cog(JoinQuit(bot))
+    bot.add_cog(UtilCMD(bot))
+    bot.add_cog(ChatDelete(bot))
+    # bot.add_cog(music.music)
 
     bot.run(data["token"])
