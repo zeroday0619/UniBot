@@ -12,6 +12,11 @@ class JoinQuit(commands.Cog):
     async def on_member_remove(self, member):
         await member.channel.send('{} 님이 서버에서 퇴장하셨습니다!'.format(member.mention))
 
+    # @commands.Cog.listener()
+    # async def on_message(self, message):
+    #     # print(message)
+    #     # if message == "ㄴㅎ":
+    #     await message.channel.send("?")
 
     # @commands.Cog.listener()
     # async def on_server_join(self, server):

@@ -6,7 +6,7 @@ class ChatDelete(commands.Cog):
         self.bot = bot
 
     @commands.command(pass_contxt=True)
-    # @commands.has_permissions(administrator=True)
+    @commands.has_permissions(administrator=True)
     async def clear(self, ctx, limit: int):
         await ctx.channel.purge(limit=limit+1)
         await ctx.send('{}님이 {}개의 채팅을 청소하셨습니다.'.format(ctx.author.mention, limit))
