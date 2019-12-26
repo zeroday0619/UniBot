@@ -13,9 +13,6 @@ async def on_ready():
     print(prefix + "Uni Bot이 실행되고 있습니다!")
     print(prefix + "Bot Name: {}".format(bot.user.name))
     print(prefix + "Join Server(Guild) List:")
-    bot.load_extension("cogs.Music.VoiceJoin")
-    bot.load_extension("cogs.Music.VoicePlay")
-    bot.load_extension("cogs.Music.VoiceLeave")
     for g in bot.guilds:
         print(prefix + "\t- " + g.name)
     await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name=f"Command | $help"))
@@ -26,5 +23,6 @@ if __name__ == '__main__':
     bot.add_cog(JoinQuit(bot))
     bot.add_cog(UtilCMD(bot))
     bot.add_cog(ChatDelete(bot))
-
+    
+    bot.load_extension("cogs.Music.music")
     bot.run(data["token"])
