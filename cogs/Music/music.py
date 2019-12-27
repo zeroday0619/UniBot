@@ -1,236 +1,252 @@
 import asyncio
-import functools
-import itertools
-import math
-import random
-
 import discord
-import youtube_dl
-from async_timeout import timeout
+import traceback
+import sys
+
 from discord.ext import commands
+from discord.ext.commands import Bot
 from discord.ext.commands import Cog
-from .utils.Song import Song
-from .utils.SongQueue import SongQueue
-from .utils.VoiceState import VoiceState
-from .utils.YTDLSource import YTDLSource
+from discord.ext.commands import NoPrivateMessage
+from cogs.Music.Utils.YTDLSource import YTDLSource
+from cogs.Music.Utils.Player import Player
+from cogs.Music.Utils.option import embed_ERROR, embed_queued, embed_value
 
 
 class Music(Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
-        self.voice_states = {}
+	__slots__ = ('bot', 'players')
 
-    def get_voice_state(self, ctx: commands.Context):
-        state = self.voice_states.get(ctx.guild.id)
-        if not state:
-            state = VoiceState(self.bot, ctx)
-            self.voice_states[ctx.guild.id] = state
+	def __init__(self, bot: Bot):
+		self.bot = bot
+		self.players = {}
 
-        return state
+	async def cleanup(self, guild):
+		try:
+			await guild.voice_client.disconnect()
+		except AttributeError as AError:
+			print("Error: {}".format(str(AError)))
+			pass
 
-    def cog_unload(self):
-        for state in self.voice_states.values():
-            self.bot.loop.create_task(state.stop())
+		try:
+			del self.players[guild.id]
+		except KeyError as KError:
+			print("Error: {}".format(str(KError)))
+			pass
 
-    def cog_check(self, ctx: commands.Context):
-        if not ctx.guild:
-            raise commands.NoPrivateMessage('이 명령은 DM 채널에서 사용할 수 없습니다.')
+	async def __local_check(self, ctx):
+		if not ctx.guild:
+			raise NoPrivateMessage
+		return True
 
-        return True
+	async def __error(self, ctx, error):
+		if isinstance(error, NoPrivateMessage):
+			try:
+				return await ctx.send("이 Command 는 DM 에서 사용할 수 없습니다")
+			except discord.HTTPException as HTTPException:
+				try:
+					await ctx.send("Error: {}".format(str(HTTPException)))
+					pass
+				except Exception as Ex:
+					print("Error: {}".format(str(Ex)))
+					pass
+		elif isinstance(error, InvalidVoiceChannel):
+			try:
+				await ctx.send("Voice Channel 연결중 Error 가 발생하였습니다\n 자신이 Voice Channel에 접속되어 있는 지 확인 바랍니다.")
+			except Exception as Ex2:
+				print("Error: {}".format(str(Ex2)))
+		print('Ignoring exception in command {}'.format(ctx.command), file=sys.stderr)
+		traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    async def cog_before_invoke(self, ctx: commands.Context):
-        ctx.voice_state = self.get_voice_state(ctx)
+	def get_player(self, ctx):
+		try:
+			player = self.players[ctx.guild.id]
+		except KeyError as KError2:
+			player = Player(ctx)
+			self.players[ctx.guild.id] = player
+		return player
 
-    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        await ctx.send('{} 오류가 발생했습니다.'.format(str(error)))
+	@commands.command(name='connect', aliases=['join', 'j'])
+	async def connect_(self, ctx, *, channel: discord.VoiceChannel=None):
+		if not channel:
+			try:
+				channel = ctx.author.voice.channel
+			except AttributeError as AError2:
+				try:
+					await ctx.send("Error: {}".format(str(AError2)))
+				except discord.HTTPException as He:
+					print("Error: {}".format(str(He)))
+					pass
+				raise InvalidVoiceChannel("Voice channel에 연결하지 못하였습니다.\n 유효한 Voice Channel과 자신이 Voice Channel에 들어와 있는지 확인바랍니다.")
+		vc = ctx.voice_client
+		if vc:
+			if vc.channel.id == channel.id:
+				return
+			try:
+				await vc.move_to(channel)
+			except asyncio.TimeoutError as TimeoutError:
+				try:
+					await ctx.send("Error: {}".format(str(TimeoutError)))
+				except discord.HTTPException as He2:
+					print("Error: {}".format(str(He2)))
+					pass
+				raise VoiceConnectionError("Moving to channel: <{}> timed out".format(str(channel)))
+		else:
+			try:
+				await channel.connect()
+			except asyncio.TimeoutError as TimeoutError2:
+				try:
+					await ctx.send("Error: {}".format(str(TimeoutError2)))
+				except discord.HTTPException as He3:
+					print("Error: {}".format(str(He3)))
+					pass
+				raise VoiceConnectionError("Connecting to channel: <{}> timed out".format(str(channel)))
 
-    @commands.command(name='join', invoke_without_subcommand=True)
-    async def _join(self, ctx: commands.Context):
-        """음성 채널에 가입합니다."""
+		embed_join = (
+			(
+				discord.Embed(
+					title="Music", description='```css\nConnected to **{}**\n```'.format(str(channel)),
+					color=discord.Color.blurple()
+				)
+			)
+				.add_field(name="INFO", value="BETA")
+			)
+		await ctx.send(embed=embed_join, delete_after=10)
 
-        destination = ctx.author.voice.channel
-        if ctx.voice_state.voice:
-            await ctx.voice_state.voice.move_to(destination)
-            return
+	@commands.command(name='play', aliases=['music', 'm'])
+	async def play_(self, ctx, *, search: str):
+		await ctx.trigger_typing()
+		vc = ctx.voice_client
+		if not vc:
+			await ctx.invoke(self.connect_)
 
-        ctx.voice_state.voice = await destination.connect()
+		player = self.get_player(ctx)
 
-    @commands.command(name='summon', aliases=['call'])
-    async def _summon(self, ctx: commands.Context, *, channel: discord.VoiceChannel = None):
-        """봇을 음성 채널로 전송합니다.
-        채널이 지정되지 않은 경우 채널에 연결됩니다.
-        """
+		source = await YTDLSource.Search(ctx, search, loop=self.bot.loop, download=True)
 
-        if not channel and not ctx.author.voice:
-            raise VoiceError('음성 채널에 연결되어 있지 않거나 가입할 채널을 지정하지 않았습니다.')
+		await player.queue.put(source)
 
-        destination = channel or ctx.author.voice.channel
-        if ctx.voice_state.voice:
-            await ctx.voice_state.voice.move_to(destination)
-            return
 
-        ctx.voice_state.voice = await destination.connect()
+	@commands.command(name='pause')
+	async def pause_(self, ctx):
+		vc = ctx.voice_client
 
-    @commands.command(name='leave', aliases=['disconnect', 'off'])
-    async def _leave(self, ctx: commands.Context):
+		if not vc or not vc.is_playing():
+			return await ctx.send(embed=embed_ERROR, delete_after=20)
+		elif vc.is_paused():
+			return
+		embed_pause = ((discord.Embed(title="Music", description='```css\n**{ctx.author}** : 일시중지.\n```',
+		                              color=discord.Color.blurple())).add_field(name="INFO", value="BETA"))
 
-        if not ctx.voice_state.voice:
-            return await ctx.send('어떤 음성 채널에도 연결되지 않았습니다.')
+		vc.pause()
+		await ctx.send(embed=embed_pause)
 
-        await ctx.voice_state.stop()
-        del self.voice_states[ctx.guild.id]
 
-    @commands.command(name='volume', aliases=['vol'])
-    async def _volume(self, ctx: commands.Context, *, volume: int):
-        """플레이어의 볼륨을 설정합니다."""
+	@commands.command(name='resume')
+	async def resume_(self, ctx):
+		vc = ctx.voice_client
 
-        if not ctx.voice_state.is_playing:
-            return await ctx.send('현재 재생 중인 것은 없습니다.')
+		if not vc or not vc.is_connected():
+			return await ctx.send(embed=embed_ERROR, delete_after=20)
+		elif not vc.is_paused():
+			return
 
-        if 0 > volume > 100:
-            return await ctx.send('볼륨은 0에서 100 사이여야 합니다.')
+		vc.resume()
+		embed_resume = ((discord.Embed(title="Music", description='```css\n**{ctx.author}** : 다시재생.\n```',
+		                              color=discord.Color.blurple())).add_field(name="INFO", value="BETA"))
 
-        ctx.voice_state.volume = volume / 100
-        await ctx.send('플레이어 볼륨이 {}%로 설정되었습니다.'.format(volume))
+		await ctx.send(embed_resume)
 
-    @commands.command(name='now', aliases=['current', 'playing'])
-    async def _now(self, ctx: commands.Context):
-        """현재 재생 중인 노래를 표시합니다."""
 
-        await ctx.send(embed=ctx.voice_state.current.create_embed())
+	@commands.command(name='skip')
+	async def skip_(self, ctx):
+		vc = ctx.voice_client
 
-    @commands.command(name='pause', aliases=['일시중지'])
-    async def _pause(self, ctx: commands.Context):
-        """현재 재생 중인 노래를 일시 중지합니다."""
+		if not vc or not vc.is_connected():
+			return await ctx.send(embed=embed_ERROR, delete_after=20)
 
-        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_playing():
-            ctx.voice_state.voice.pause()
-            await ctx.message.add_reaction('⏯')
+		if vc.is_paused():
+			pass
+		elif not vc.is_playing():
+			return
 
-    @commands.command(name='resume', aliases=['res'])
-    async def _resume(self, ctx: commands.Context):
-        """현재 일시 중지된 노래를 다시 시작합니다."""
+		vc.stop()
+		embed_skip = ((discord.Embed(title="Music", description='```css\n**{ctx.author}** : 스킵!.\n```',
+		                              color=discord.Color.blurple())).add_field(name="INFO", value="BETA"))
 
-        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused():
-            ctx.voice_state.voice.resume()
-            await ctx.message.add_reaction('⏯')
+		await ctx.send(embed=embed_skip)
 
-    @commands.command(name='stop')
-    async def _stop(self, ctx: commands.Context):
-        """노래 재생을 중지하고 재생목록을 지웁니다."""
 
-        ctx.voice_state.songs.clear()
+	@commands.command(name='queue', aliases=['q', 'playlist'])
+	async def queue_info(self, ctx):
+		vc = ctx.voice_client
 
-        if not ctx.voice_state.is_playing:
-            ctx.voice_state.voice.stop()
-            await ctx.message.add_reaction('⏹')
+		if not vc or not vc.is_connected():
+			return await ctx.send(embed=embed_ERROR, delete_after=20)
 
-    @commands.command(name='skip', aliases=['스킵', 'sp'])
-    async def _skip(self, ctx: commands.Context):
-        """한 곡 건너뛰는 걸로 투표하세요. 요청자는 자동으로 건너뛸 수 있습니다.
-        건너뛰기 위해서는 3개의 건너뛰기 표가 필요합니다.
-        """
+		player = self.get_player(ctx)
+		if player.queue.empty():
+			return await ctx.send(embed=embed_queued)
 
-        if not ctx.voice_state.is_playing:
-            return await ctx.send('지금은 음악을 재생중이 아닙니다.')
+		upcoming = list(itertools.islice(player.queue._queue, 0, 5))
 
-        voter = ctx.message.author
-        if voter == ctx.voice_state.current.requester:
-            await ctx.message.add_reaction('⏭')
-            ctx.voice_state.skip()
+		fmt = '\n'.join(f'**`{_["title"]}`**' for _ in upcoming)
+		embed_queue=((discord.Embed(title=f'```css\nUpcoming - Next *{len(upcoming)}*\n```', description=fmt,
+		                              color=discord.Color.blurple())))
 
-        elif voter.id not in ctx.voice_state.skip_votes:
-            ctx.voice_state.skip_votes.add(voter.id)
-            total_votes = len(ctx.voice_state.skip_votes)
 
-            if total_votes >= 3:
-                await ctx.message.add_reaction('⏭')
-                ctx.voice_state.skip()
-            else:
-                await ctx.send('현재 **{}/3** 위치에서 생략 투표가 추가되었습니다.'.format(total_votes))
+		await ctx.send(embed=embed_queue)
 
-        else:
-            await ctx.send('이 노래를 건너뛰기로 이미 명령을 실행하였습니다.')
 
-    @commands.command(name='queue', aliases=['재생목록', 'playlist', 'pl'])
-    async def _queue(self, ctx: commands.Context, *, page: int = 1):
-        """플레이어의 대기열을 표시합니다.
-        선택적으로 표시할 페이지를 지정할 수 있습니다. 각 페이지에는 10개의 요소가 있습니다.
-        """
+	@commands.command(name='now_playing', aliases=['np', 'current', 'currentsong', 'playing'])
+	async def now_playing_(self, ctx):
+		vc = ctx.voice_client
 
-        if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty playlist.')
+		if not vc or not vc.is_connected():
+			return await ctx.send(embed=embed_ERROR, delete_after=20)
 
-        items_per_page = 10
-        pages = math.ceil(len(ctx.voice_state.songs) / items_per_page)
+		player = self.get_player(ctx)
+		if not player.current:
+			return await ctx.send(embed=embed_ERROR)
 
-        start = (page - 1) * items_per_page
-        end = start + items_per_page
+		try:
+			await player.np.delete()
+		except discord.HTTPException:
+			pass
+		embed_now_playing = ((discord.Embed(title=f'```css\n**Now Playing:** `{vc.source.title}````', description=f'requested by `{vc.source.requester}`',
+		                              color=discord.Color.blurple())))
 
-        queue = ''
-        for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
-            queue += '`{0}.` [**{1.source.title}**]({1.source.url})\n'.format(i + 1, song)
+		player.np = await ctx.send(embed=embed_now_playing)
 
-        embed = (discord.Embed(description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
-                 .set_footer(text='Viewing page {}/{}'.format(page, pages)))
-        await ctx.send(embed=embed)
 
-    @commands.command(name='shuffle', aliases=['shf', 'sff'])
-    async def _shuffle(self, ctx: commands.Context):
-        if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
+	@commands.command(name='volume', aliases=['vol'])
+	async def change_volume(self, ctx, *, vol: float):
+		vc = ctx.voice_client
 
-        ctx.voice_state.songs.shuffle()
-        await ctx.message.add_reaction('✅')
+		if not vc or not vc.is_connected():
+			return await ctx.send(embed=embed_ERROR, delete_after=20)
 
-    @commands.command(name='remove', aliases=['rm'])
-    async def _remove(self, ctx: commands.Context, index: int):
-        """재생목록에서 노래를 제거합니다."""
+		if not 0 < vol < 101:
+			return await ctx.send(embed_value)
 
-        if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
+		player = self.get_player(ctx)
 
-        ctx.voice_state.songs.remove(index - 1)
-        await ctx.message.add_reaction('✅')
+		if vc.source:
+			vc.source.volume = vol / 100
 
-    @commands.command(name='loop', aliases=['루프', 'lp'])
-    async def _loop(self, ctx: commands.Context):
-        """
-        현재 재생중인 노래를 반복합니다.
-        이 명령을 다시 호출하여 노래의 루프를 해제하십시오.
-        """
+		player.volume = vol / 100
+		embed_now_playing = ((discord.Embed(title="Music", description=f'```**`{ctx.author}`**: Set the volume to **{vol}%**````',
+		                              color=discord.Color.blurple())))
 
-        if not ctx.voice_state.is_playing:
-            return await ctx.send('현재 재생 중인 음악이 없습니다.')
+		await ctx.send(embed=embed_now_playing)
 
-        ctx.voice_state.loop = not ctx.voice_state.loop
-        await ctx.message.add_reaction('✅')
 
-    @commands.command(name='play', aliases=['p', 'm'])
-    async def _play(self, ctx: commands.Context, *, search: str):
-        if not ctx.voice_state.voice:
-            await ctx.invoke(self._join)
+	@commands.command(name='stop')
+	async def stop_(self, ctx):
+		vc = ctx.voice_client
 
-        async with ctx.typing():
-            try:
-                source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop)
-            except YTDLError as e:
-                await ctx.send('{} 요청을 처리하는 동안 오류가 발생했습니다'.format(str(e)))
-            else:
-                song = Song(source)
+		if not vc or not vc.is_connected():
+			return await ctx.send(embed=embed_ERROR, delete_after=20)
 
-                await ctx.voice_state.songs.put(song)
-                await ctx.send('Enqueued {}'.format(str(source)))
-
-    @_join.before_invoke
-    @_play.before_invoke
-    async def ensure_voice_state(self, ctx: commands.Context):
-        if not ctx.author.voice or not ctx.author.voice.channel:
-            raise commands.CommandError('음성 채널에 연결되어 있지 않습니다.')
-
-        if ctx.voice_client:
-            if ctx.voice_client.channel != ctx.author.voice.channel:
-                raise commands.CommandError('봇은 이미 음성 채널에 있습니다.')
+		await self.cleanup(ctx.guild)
 
 def setup(bot):
-    bot.add_cog(Music(bot))
+	bot.add_cog(Music(bot))

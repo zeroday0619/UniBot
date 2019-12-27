@@ -1,125 +1,89 @@
+import discord
 import asyncio
+import youtube_dl
 import functools
 import itertools
-import discord
-import youtube_dl
-
+from discord import FFmpegPCMAudio
 from discord import PCMVolumeTransformer
 from discord.ext import commands
+from discord.ext.commands import Bot
+from discord.ext.commands import Cog
+from discord.ext.commands import Context
+from discord.ext.commands import CommandError
+from asyncio import BaseEventLoop
+from youtube_dl import YoutubeDL
+from cogs.Music.Utils.option import ffmpeg_options
+from cogs.Music.Utils.option import ytdl_format_options
+from cogs.Music.Utils.music_ext import run_in_threadpool
 
 youtube_dl.utils.bug_reports_message = lambda: ''
+ytdl = YoutubeDL(ytdl_format_options)
 
-class YTDLError(Exception):
-    pass
+class YTDLDownloadOnly(CommandError):
+    """Only download"""
 
 class YTDLSource(PCMVolumeTransformer):
-    # youtube_dl 설정 값
-    YTDL_OPTION = {
-        'format': 'bestaudio/best',
-        'extractaudio': True,
-        'audioformat': 'mp3',
-        'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-        'restrictfilenames': True,
-        'noplaylist': True,
-        'nocheckcertificate': True,
-        'ignoreerrors': False,
-        'logtostderr': False,
-        'quiet': True,
-        'no_warnings': True,
-        'default_search': 'auto',
-        'source_address': '0.0.0.0',
-    }
-    # FFMPEG 설정 값
-    FFMPEG_OPTIONS = {
-        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-        'options': '-vn',
-    }
-
-    ytdl = youtube_dl.YoutubeDL(YTDL_OPTION)
-
-    def __init__(self, ctx: commands.Context, source: discord.FFmpegPCMAudio, *, data: dict, volume: float = 0.5):
-        super().__init__(source, volume)
-
-        self.requester = ctx.author
-        self.channel = ctx.channel
-        self.data = data
-
-        self.uploader = data.get('uploader')
-        self.uploader_url = data.get('uploader_url')
+    def __init__(self, source, *, data, requester):
+        super().__init__(source)
         date = data.get('upload_date')
-        self.upload_date = date[6:8] + '.' + date[4:6] + '.' + date[0:4]
-        self.title = data.get('title')
-        self.thumbnail = data.get('thumbnail')
+        self.url = data.get('url')  # Youtube Addresses
+        self.web_url = data.get('webpage_url')
+        self.data = data # Youtube Content Data
+        self.title = data.get('title') # Youtube Title
+        self.thumbnail = data.get('thumbnail') # Youtube Thumbnail
+        self.requester = requester
+        self.uploader = data.get('uploader') # Youtube Uploader
+        self.uploader_url = data.get('uploader_url')
         self.description = data.get('description')
+
         self.duration = self.parse_duration(int(data.get('duration')))
-        self.tags = data.get('tags')
-        self.url = data.get('webpage_url')
-        self.views = data.get('view_count')
-        self.likes = data.get('like_count')
-        self.dislikes = data.get('dislike_count')
-        self.stream_url = data.get('url')
-
-
-    def __str__(self):
-        return '**{0.title}** by **{0.uploader}**'.format(self)
-        
-    
+    def __getitem__(self, item: str):
+        """Allows us to access attributes similar to a dict.
+        This is only useful when you are NOT downloading.
+        """
+        return self.__getattribute__(item)
     @classmethod
-    async def create_source(cls, ctx: commands.Context, search: str, *, loop: asyncio.BaseEventLoop = None):
+    async def Search(cls, ctx: Context, search: str, *, loop: BaseEventLoop = None, download=True):
         loop = loop or asyncio.get_event_loop()
+        try:
+            data = await run_in_threadpool(lambda: ytdl.extract_info(url=search, download=download))
+        except youtube_dl.utils.YoutubeDLError as ytdl_error:
+            await ctx.send("Error: {}".format(str(ytdl_error)))
+            await asyncio.sleep(1)
 
-        partial = functools.partial(cls.ytdl.extract_info, search, download=False, process=False)
-        data = await loop.run_in_executor(None, partial)
+        if 'entries' in data:
+            data = data['entries'][0]
 
-        if data is None:
-            raise YTDLError('일치하는 항목을 찾을 수 없습니다. `{}'.format(search))
+        await ctx.send("**{}**가 재생목록에 추가되었습니다.".format(str(data['title'])))
 
-        if 'entries' not in data:
-            process_info = data
+        if download:
+            source = ytdl.prepare_filename(data)
         else:
-            process_info = None
-            for entry in data['entries']:
-                if entry:
-                    process_info = entry
-                    break
-
-            if process_info is None:
-                raise YTDLError('일치하는 항목을 찾을 수 없습니다 `{}`'.format(search))
-
-        webpage_url = process_info['webpage_url']
-        partial = functools.partial(cls.ytdl.extract_info, webpage_url, download=False)
-        process_info = await loop.run_in_executor(None, partial)
-
-        if process_info is None:
-            raise YTDLError('Couldn\'t fetch `{}`'.format(webpage_url))
-
-        if 'entries' not in process_info:
-            info = process_info
-        else:
-            info = None
-            while info is None:
-                try:
-                    info = process_info['entries'].pop(0)
-                except IndexError:
-                    raise YTDLError('`{}`에 대한 일치 항목을 검색 할 수 없습니다.'.format(webpage_url))
-        
-        return cls(ctx, discord.FFmpegPCMAudio(info['url'], **cls.FFMPEG_OPTIONS), data=info)
+            return {'webpage_url': data['webpage_url'], 'requester': ctx.author, 'title': data['title']}
+        return cls(discord.FFmpegPCMAudio(source), data=data, requester=ctx.author)
 
 
-        @staticmethod
-        def parse_duration(duration: int):
-            minutes, seconds = divmod(duration, 60)
-            hours, minutes = divmod(minutes, 60)
-            days, hours = divmod(hours, 24)
+    @classmethod
+    async def reqather_stream(cls, data, *, loop):
+        # stream Mode | Not Complete
+        loop = loop or asyncio.get_event_loop()
+        requester = data['requester']
+        source = await run_in_threadpool(lambda: ytdl.extract_info(url=data['webpage_url'], download=False))
+        return cls(discord.FFmpegPCMAudio(data['url']), data=data, requester=requester)
 
-            duration = []
-            if days > 0:
-                duration.append('{} days'.format(days))
-            if hours > 0:
-                duration.append('{} hours'.format(hours))
-            if minutes > 0:
-                duration.append('{} minutes'.format(minutes))
-            if seconds > 0:
-                duration.append('{} seconds'.format(seconds))
+    @staticmethod
+    def parse_duration(duration: int):
+        minutes, seconds = divmod(duration, 60)
+        hours, minutes = divmod(minutes, 60)
+        days, hours = divmod(hours, 24)
 
-            return ', '.join(duration)
+        duration = []
+        if days > 0:
+            duration.append('{} days'.format(days))
+        if hours > 0:
+            duration.append('{} hours'.format(hours))
+        if minutes > 0:
+            duration.append('{} minutes'.format(minutes))
+        if seconds > 0:
+            duration.append('{} seconds'.format(seconds))
+        return ', '.join(duration)
