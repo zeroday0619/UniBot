@@ -65,11 +65,10 @@ class YTDLSource(PCMVolumeTransformer):
 
     @classmethod
     async def reqather_stream(cls, data, *, loop):
-        # stream Mode | Not Complete
         loop = loop or asyncio.get_event_loop()
         requester = data['requester']
         source = await run_in_threadpool(lambda: ytdl.extract_info(url=data['webpage_url'], download=False))
-        return cls(discord.FFmpegPCMAudio(data['url']), data=data, requester=requester)
+        return cls(discord.FFmpegPCMAudio(source['url']), data=source, requester=requester)
 
     @staticmethod
     def parse_duration(duration: int):

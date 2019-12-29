@@ -57,3 +57,5 @@ class UtilCMD(commands.Cog):
         embed.set_thumbnail(url=user.avatar_url)
         await ctx.send(embed=embed)
 
+def setup(bot):
+	bot.add_cog(Music(bot))
