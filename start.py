@@ -32,5 +32,5 @@ if __name__ == '__main__':
     bot.add_cog(UtilCMD(bot))
     bot.add_cog(ChatDelete(bot))
     bot.load_extension("cogs.Music.music")
-    bot.load_extension("cogs.Utils.Status")
+    # bot.load_extension("cogs.Utils.Status")
     bot.run(data["token"])

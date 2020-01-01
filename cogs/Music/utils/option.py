@@ -3,7 +3,7 @@ import discord
 def ytdl_format_options_a():
     ytdl_format_options = {
         'format': 'bestaudio/best',
-        'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+        'outtmpl': 'cache/%(extractor)s-%(id)s-%(title)s.%(ext)s',
         'restrictfilenames': True,
         'noplaylist': True,
         'nocheckcertificate': True,
@@ -12,12 +12,16 @@ def ytdl_format_options_a():
         'quiet': True,
         'no_warnings': True,
         'default_search': 'auto',
-        'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
+        'source_address': '0.0.0.0',
+        'no-geo-bypass': False
     }
     return ytdl_format_options
 
 def ffmpeg_options_a():
-    options={'options': '-vn'}
+    options={
+        'before_options': '-nostdin',
+        'options': '-vn'
+        }
     return options
 
 
