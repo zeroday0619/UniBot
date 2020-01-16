@@ -1,8 +1,3 @@
-"""
-Powered By ZERODAY BOT
-Copyright (C) 2019 All Rights Reserved Zeroday Cha
-Closed Source | Uni Bot Project 한정 Project ZERODAY 소스 공유
-"""
 import asyncio
 import discord
 import traceback
