@@ -1,3 +1,8 @@
+"""
+Powered By ZERODAY BOT
+Copyright (C) 2019 All Rights Reserved Zeroday Cha
+Closed Source | Uni Bot Project 한정 Project ZERODAY 소스 공유
+"""
 import asyncio
 import discord
 import traceback
@@ -108,7 +113,7 @@ class Music(Cog):
 					color=discord.Color.blurple()
 				)
 			)
-				.add_field(name="INFO", value="BETA")
+				.add_field(name="INFO", value="stable")
 			)
 		await ctx.send(embed=embed_join, delete_after=10)
 
@@ -134,8 +139,8 @@ class Music(Cog):
 			return await ctx.send(embed=embed_ERROR, delete_after=20)
 		elif vc.is_paused():
 			return
-		embed_pause = ((discord.Embed(title="Music", description='```css\n**{ctx.author}** : 일시중지.\n```',
-		                              color=discord.Color.blurple())).add_field(name="INFO", value="BETA"))
+		embed_pause = ((discord.Embed(title="Music", description=f'```css\n**{ctx.author}** : 일시중지.\n```',
+		                              color=discord.Color.blurple())).add_field(name="INFO", value="stable"))
 
 		vc.pause()
 		await ctx.send(embed=embed_pause)
@@ -151,8 +156,8 @@ class Music(Cog):
 			return
 
 		vc.resume()
-		embed_resume = ((discord.Embed(title="Music", description='```css\n**{ctx.author}** : 다시재생.\n```',
-		                              color=discord.Color.blurple())).add_field(name="INFO", value="BETA"))
+		embed_resume = ((discord.Embed(title="Music", description=f'```css\n**{ctx.author}** : 다시재생.\n```',
+		                              color=discord.Color.blurple())).add_field(name="INFO", value="stable"))
 
 		await ctx.send(embed_resume)
 
@@ -170,8 +175,8 @@ class Music(Cog):
 			return
 
 		vc.stop()
-		embed_skip = ((discord.Embed(title="Music", description='```css\n**{ctx.author}** : 스킵!.\n```',
-		                              color=discord.Color.blurple())).add_field(name="INFO", value="BETA"))
+		embed_skip = ((discord.Embed(title="Music", description=f'```css\n**{ctx.author}** : 스킵!.\n```',
+		                              color=discord.Color.blurple())).add_field(name="INFO", value="stable"))
 
 		await ctx.send(embed=embed_skip)
 

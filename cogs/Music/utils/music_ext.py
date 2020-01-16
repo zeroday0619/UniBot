@@ -1,3 +1,8 @@
+"""
+Powered By ZERODAY BOT
+copyright (C) 2019 All Rights Reserved Zeroday Cha
+Closed Source | Uni Bot Project 한정 Project ZERODAY 소스 공유
+"""
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 running_threads = 0

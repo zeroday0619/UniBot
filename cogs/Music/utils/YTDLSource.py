@@ -1,3 +1,8 @@
+"""
+Powered By ZERODAY BOT
+copyright (C) 2019 All Rights Reserved Zeroday Cha
+Closed Source | Uni Bot Project 한정 Project ZERODAY 소스 공유
+"""
 import discord
 import asyncio
 import youtube_dl
@@ -49,7 +54,6 @@ class YTDLSource(PCMVolumeTransformer):
             data = await run_in_threadpool(lambda: ytdl.extract_info(url=search, download=download))
         except youtube_dl.utils.YoutubeDLError as ytdl_error:
             await ctx.send("Error: {}".format(str(ytdl_error)))
-            await asyncio.sleep(1)
 
         if 'entries' in data:
             data = data['entries'][0]
