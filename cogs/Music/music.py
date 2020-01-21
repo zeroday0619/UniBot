@@ -19,6 +19,8 @@ class Music(Cog):
 	def __init__(self, bot: Bot):
 		self.bot = bot
 		self.players = {}
+		self.buildVer = "20200116 R1"
+		self.verstring = "Ver"
 
 	async def cleanup(self, guild):
 		try:
@@ -102,14 +104,13 @@ class Music(Cog):
 				raise VoiceConnectionError("Connecting to channel: <{}> timed out".format(str(channel)))
 
 		embed_join = (
-			(
-				discord.Embed(
-					title="Music", description='```css\nConnected to **{}**\n```'.format(str(channel)),
-					color=discord.Color.blurple()
-				)
+			discord.Embed(
+				title="Music", 
+				description='```css\nConnected to **{}**\n```'.format(str(channel)),
+				color=discord.Color.blurple()
 			)
-				.add_field(name="INFO", value="stable")
-			)
+			.add_field(name=self.verstring, value=self.buildVer)
+		)
 		await ctx.send(embed=embed_join, delete_after=10)
 
 	@commands.command(name='play', aliases=['music', 'm'])
@@ -134,8 +135,14 @@ class Music(Cog):
 			return await ctx.send(embed=embed_ERROR, delete_after=20)
 		elif vc.is_paused():
 			return
-		embed_pause = ((discord.Embed(title="Music", description=f'```css\n**{ctx.author}** : 일시중지.\n```',
-		                              color=discord.Color.blurple())).add_field(name="INFO", value="stable"))
+		embed_pause = (
+			discord.Embed(
+				title="Music", 
+				description=f'```css\n**{ctx.author}** : 일시중지.\n```',
+				color=discord.Color.blurple()
+			)
+			.add_field(name=self.verstring, value=self.buildVer)
+		)
 
 		vc.pause()
 		await ctx.send(embed=embed_pause)
@@ -151,8 +158,14 @@ class Music(Cog):
 			return
 
 		vc.resume()
-		embed_resume = ((discord.Embed(title="Music", description=f'```css\n**{ctx.author}** : 다시재생.\n```',
-		                              color=discord.Color.blurple())).add_field(name="INFO", value="stable"))
+		embed_resume = (
+			discord.Embed(
+				title="Music", 
+				description=f'```css\n**{ctx.author}** : 다시재생.\n```', 
+				color=discord.Color.blurple()
+			)
+			.add_field(name=self.verstring, value=self.buildVer)
+		)
 
 		await ctx.send(embed_resume)
 
@@ -170,8 +183,14 @@ class Music(Cog):
 			return
 
 		vc.stop()
-		embed_skip = ((discord.Embed(title="Music", description=f'```css\n**{ctx.author}** : 스킵!.\n```',
-		                              color=discord.Color.blurple())).add_field(name="INFO", value="stable"))
+		embed_skip = (
+			discord.Embed(
+				title="Music", 
+				description=f'```css\n**{ctx.author}** : 스킵!.\n```',
+				color=discord.Color.blurple()
+			)
+			.add_field(name=self.verstring, value=self.buildVer)
+		)
 
 		await ctx.send(embed=embed_skip)
 
@@ -190,8 +209,14 @@ class Music(Cog):
 		upcoming = list(itertools.islice(player.queue._queue, 0, 5))
 
 		fmt = '\n'.join(f'**`{_["title"]}`**' for _ in upcoming)
-		embed_queue=((discord.Embed(title=f'```css\nUpcoming - Next *{len(upcoming)}*\n```', description=fmt,
-		                              color=discord.Color.blurple())))
+		embed_queue=(
+			discord.Embed(
+				title=f'```css\nUpcoming - Next *{len(upcoming)}*\n```', 
+				description=fmt, 
+				color=discord.Color.blurple()
+			)
+			.add_field(name=self.verstring, value=self.buildVer)
+		)
 
 
 		await ctx.send(embed=embed_queue)
@@ -212,9 +237,14 @@ class Music(Cog):
 			await player.np.delete()
 		except discord.HTTPException:
 			pass
-		embed_now_playing = ((discord.Embed(title=f'```css\n**Now Playing:** `{vc.source.title}````', description=f'requested by `{vc.source.requester}`',
-		                              color=discord.Color.blurple())))
-
+		embed_now_playing = (
+			discord.Embed(
+				title=f'```css\n**Now Playing:** `{vc.source.title}````', 
+				description=f'requested by `{vc.source.requester}`',
+				color=discord.Color.blurple()
+			)
+			.add_field(name=self.verstring, value=self.buildVer)
+		)
 		player.np = await ctx.send(embed=embed_now_playing)
 
 
@@ -234,8 +264,14 @@ class Music(Cog):
 			vc.source.volume = vol / 100
 
 		player.volume = vol / 100
-		embed_now_playing = ((discord.Embed(title="Music", description=f'```**`{ctx.author}`**: Set the volume to **{vol}%**````',
-		                              color=discord.Color.blurple())))
+		embed_now_playing = (
+			discord.Embed(
+				title="Music", 
+				description=f'```**`{ctx.author}`**: Set the volume to **{vol}%**````',
+				color=discord.Color.blurple()
+			)
+			.add_field(name=self.verstring, value=self.buildVer)
+		)
 
 		await ctx.send(embed=embed_now_playing)
 

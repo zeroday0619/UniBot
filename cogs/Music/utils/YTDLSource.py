@@ -14,7 +14,7 @@ from asyncio import BaseEventLoop
 from youtube_dl import YoutubeDL
 from cogs.Music.Utils.option import ffmpeg_options
 from cogs.Music.Utils.option import ytdl_format_options
-from cogs.Music.Utils.music_ext import run_in_threadpool
+from Util import run_in_threadpool
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 ytdl = YoutubeDL(ytdl_format_options)
