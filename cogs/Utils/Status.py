@@ -17,12 +17,13 @@ class StatusView(commands.Cog):
         self.bot = bot
         self.category_name = "STATS"
         
+    @task.loop(minutes=5.0)
+    async def ChangeStatistics(self, guild: discord..Guild):
+
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
         print("Created Category")
         await guild.create_category(name=self.category_name)
-        
-        
         await guild.create_voice_channel(name="TEST", category=self.category_name)
         
 

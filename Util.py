@@ -18,6 +18,38 @@ with codecs.open('config.json', 'r', 'utf-8') as json_file:
 
 bot = commands.AutoShardedBot(command_prefix=data["prefix"], case_insensitive=True)
 
+@bot.command()
+@commands.is_owner()
+async def music_reload(ctx):
+    try:
+        bot.unload_extension(f"cogs.Music.music")
+        bot.load_extension(f"cogs.Music.music")
+        await ctx.send("music module got reloaded!")
+    except Exception as e:
+        print(f"Music module can not be loaded:")
+        raise e
+@bot.command()
+@commands.is_owner()
+async def events_reload(ctx):
+    try:
+        bot.unload_extension(f"cogs.Utils.Events")
+        bot.load_extension(f"cogs.Utils.Events")
+        await ctx.send("Events module got reloaded!")
+    except Exception as e:
+        print(f"Events module can not be loaded:")
+        raise e
+
+@bot.command()
+@commands.is_owner()
+async def mod_reload(ctx):
+    try:
+        bot.unload_extension(f"cogs.Manager.Mod")
+        bot.load_extension(f"cogs.Manager.Mod")
+        await ctx.send("Mod module got reloaded!")
+    except Exception as e:
+        print(f"Mod module can not be loaded:")
+        raise e
+
 
 def post_stats():
 	payload = {"server_count":int(len(bot.servers))}

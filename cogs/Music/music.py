@@ -8,12 +8,12 @@ from discord.ext import commands
 from discord.ext.commands import Bot
 from discord.ext.commands import Cog
 from discord.ext.commands import NoPrivateMessage
-from cogs.Music.Utils.YTDLSource import YTDLSource
-from cogs.Music.Utils.Player import Player
-from cogs.Music.Utils.option import embed_ERROR, embed_queued, embed_value
+from cogs.Music.utils.YTDLSource import YTDLSource
+from cogs.Music.utils.Player import Player
+from cogs.Music.utils.option import embed_ERROR, embed_queued, embed_value
 
 
-class Music(Cog):
+class music(Cog):
 	__slots__ = ('bot', 'players')
 
 	def __init__(self, bot: Bot):
@@ -286,4 +286,4 @@ class Music(Cog):
 		await self.cleanup(ctx.guild)
 
 def setup(bot):
-	bot.add_cog(Music(bot))
+	bot.add_cog(music(bot))

@@ -39,15 +39,13 @@ class Player:
 		await self.bot.wait_until_ready()
 
 		while not self.bot.is_closed():
-			self.next.clear()
-
-			try:
-				async with timeout(300):
+			try:				
+				async with timeout(3000000):
 					source = await self.queue.get()
 			except asyncio.TimeoutError as TimeoutError:
 				print(str(TimeoutError))
-				return self.destroy(self._guild)
 
+			self.next.clear()
 			if not isinstance(source, YTDLSource):
 				try:
 					source = await YTDLSource.reqather_stream(source, loop=self.bot.loop)
@@ -57,6 +55,7 @@ class Player:
 
 			source.volume = self.volume
 			self.current = source
+
 			embed = (
 				discord.Embed(
 					title='Now playing', description='```css\n{0.title}\n```'.format(source),
