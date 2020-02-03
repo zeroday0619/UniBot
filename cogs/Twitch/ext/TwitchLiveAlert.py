@@ -1,9 +1,3 @@
-"""
-# Twitch Live Stream Alert
-## developer : zeroday0619
--------------------------------------------------
-(C)2020. Team Uni All Rights Reserved
-"""
 import asyncio
 import aiohttp
 import polling
