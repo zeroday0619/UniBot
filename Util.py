@@ -15,41 +15,8 @@ prefix = color_header('UniBot || ')
 
 with codecs.open('config.json', 'r', 'utf-8') as json_file:
     data = json.load(json_file)
-
+    
 bot = commands.AutoShardedBot(command_prefix=data["prefix"], case_insensitive=True)
-
-@bot.command()
-@commands.is_owner()
-async def music_reload(ctx):
-    try:
-        bot.unload_extension(f"cogs.Music.music")
-        bot.load_extension(f"cogs.Music.music")
-        await ctx.send("music module got reloaded!")
-    except Exception as e:
-        print(f"Music module can not be loaded:")
-        raise e
-@bot.command()
-@commands.is_owner()
-async def events_reload(ctx):
-    try:
-        bot.unload_extension(f"cogs.Utils.Events")
-        bot.load_extension(f"cogs.Utils.Events")
-        await ctx.send("Events module got reloaded!")
-    except Exception as e:
-        print(f"Events module can not be loaded:")
-        raise e
-
-@bot.command()
-@commands.is_owner()
-async def mod_reload(ctx):
-    try:
-        bot.unload_extension(f"cogs.Manager.Mod")
-        bot.load_extension(f"cogs.Manager.Mod")
-        await ctx.send("Mod module got reloaded!")
-    except Exception as e:
-        print(f"Mod module can not be loaded:")
-        raise e
-
 
 def post_stats():
 	payload = {"server_count":int(len(bot.servers))}
@@ -95,13 +62,10 @@ def logger_config(bot):
         )
     )
     api_logger.addHandler(api_handler)
-
     return logger
 
 running_threads = 0 
 max_threads = data['thread']
-
-
 async def run_in_threadpool(function):
     global running_threads
 
@@ -120,5 +84,14 @@ async def run_in_threadpool(function):
         finally:
             running_threads = running_threads - 1
             thread_pool.shutdown(wait=True)
-
         return result
+
+@bot.command()
+async def reload(ctx):
+    try:
+        bot.unload_extension(f"cogs")
+        bot.load_extension(f"cogs")
+        await ctx.send("Uni Bot 시스템 리로드")
+    except Exception as e:
+        print("시스템 리로드 실패, ERROR: {}".format(str(e)))
+        raise e

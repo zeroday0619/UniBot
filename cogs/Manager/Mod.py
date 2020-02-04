@@ -44,6 +44,3 @@ class Mod(commands.Cog):
         await ctx.send(
             embed=embedBan
         )
-
-def setup(bot):
-    bot.add_cog(Mod(bot))

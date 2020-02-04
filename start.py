@@ -27,11 +27,5 @@ async def on_ready():
 
 if __name__ == '__main__':
     bot.remove_command('help')
-    bot.add_cog(JoinQuit(bot))
-    bot.add_cog(UtilCMD(bot))
-    bot.add_cog(ChatDelete(bot))
-    bot.load_extension("cogs.Music.music")
-    bot.load_extension("cogs.Utils.Events")
-    bot.load_extension("cogs.Manager.Mod")
-    # bot.load_extension("cogs.Utils.Status")
+    bot.load_extension("cogs")
     bot.run(data["token"])

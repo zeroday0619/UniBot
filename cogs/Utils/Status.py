@@ -26,6 +26,3 @@ class StatusView(commands.Cog):
         await guild.create_category(name=self.category_name)
         await guild.create_voice_channel(name="TEST", category=self.category_name)
         
-
-def setup(bot):
-    bot.add_cog(StatusView(bot))

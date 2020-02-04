@@ -284,6 +284,3 @@ class music(Cog):
 			return await ctx.send(embed=embed_ERROR, delete_after=20)
 
 		await self.cleanup(ctx.guild)
-
-def setup(bot):
-	bot.add_cog(music(bot))
