@@ -5,7 +5,6 @@ from .Music.music import music
 from .Utils.Events import Events
 from .Utils.JoinQuit import JoinQuit
 from .Utils.UtilCMD import UtilCMD
-from .Twitch.twitch import Twitch
 
 def setup(bot: commands.Bot):
     bot.add_cog(ChatDelete(bot))
@@ -14,4 +13,3 @@ def setup(bot: commands.Bot):
     bot.add_cog(Events(bot))
     bot.add_cog(JoinQuit(bot))
     bot.add_cog(UtilCMD(bot))
-    bot.add_cog(Twitch(bot))
