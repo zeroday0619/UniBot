@@ -1,5 +1,4 @@
 discord.py[voice]==1.3.1
 aiohttp[speedups]
-discord_argparse
 async-timeout
 youtube_dl
